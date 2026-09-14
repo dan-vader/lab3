@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Locally generated data
+part1_autoloader/out_files/
+part1_autoloader/out_files_v2/
