@@ -92,3 +92,22 @@ display(rescued)
 # COMMAND ----------
 
 log.info("Total rows in bronze: %d", spark.table(target_table).count())
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Schema evolution
+# MAGIC Files with a new column (`blade_pitch_deg`) are added to the raw folder.
+# MAGIC With `addNewColumns`, the first run fails once with `UnknownFieldException` after saving the new column to `schemaLocation`, and the next run succeeds.
+# MAGIC In a job, task retries handle this automatically.
+
+# COMMAND ----------
+
+q = run_ingest()
+log.info("Post-evolution load done")
+
+# COMMAND ----------
+
+display(spark.sql(
+    f"SELECT count(*) AS rows_with_pitch FROM {target_table} WHERE blade_pitch_deg IS NOT NULL"
+))
