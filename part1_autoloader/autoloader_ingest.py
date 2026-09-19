@@ -81,7 +81,7 @@ log.info("Initial load done")
 # Each file holds one record, so numInputRows equals the number of files in the batch
 for p in q.recentProgress:
     log.info("batch %s | rows=%s | triggerMs=%s",
-             p["batchId"], p["numInputRows"], p["durationMs"].get("triggerExecution"))
+             p.batchId, p.numInputRows, p.durationMs.get("triggerExecution"))
 
 # COMMAND ----------
 
