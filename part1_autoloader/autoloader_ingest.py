@@ -111,3 +111,49 @@ log.info("Post-evolution load done")
 display(spark.sql(
     f"SELECT count(*) AS rows_with_pitch FROM {target_table} WHERE blade_pitch_deg IS NOT NULL"
 ))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Safe reload and trigger types
+# MAGIC Re-running with the existing checkpoint loads no new files, so no duplicates appear.
+# MAGIC A fresh checkpoint reprocesses every file. This is shown with `trigger(once=True)` on a separate demo table, which keeps the main bronze table clean.
+
+# COMMAND ----------
+
+reload_ckpt = f"/Volumes/{catalog}/{schema}/raw/_checkpoint_reload_demo"
+reload_table = f"{catalog}.{schema}.turbine_bronze_reload_demo"
+dbutils.fs.rm(reload_ckpt, recurse=True)
+
+qr = (spark.readStream.format("cloudFiles")
+      .option("cloudFiles.format", "json")
+      .option("cloudFiles.schemaLocation", schema_path)
+      .option("cloudFiles.inferColumnTypes", "true")
+      .option("cloudFiles.schemaHints", "wind_speed_mps DOUBLE")
+      .option("cloudFiles.maxFilesPerTrigger", 100)
+      .load(raw_path)
+      .writeStream
+      .option("checkpointLocation", reload_ckpt)
+      .option("mergeSchema", "true")
+      .trigger(once=True)
+      .toTable(reload_table))
+qr.awaitTermination()
+log.info("Reload demo rows (full reprocess): %d", spark.table(reload_table).count())
+
+# COMMAND ----------
+
+before = spark.table(target_table).count()
+q = run_ingest()
+after = spark.table(target_table).count()
+log.info("Safe reload of main table: before=%d after=%d", before, after)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Cleanup
+# MAGIC Removes the reload demo table and its checkpoint.
+
+# COMMAND ----------
+
+spark.sql(f"DROP TABLE IF EXISTS {reload_table}")
+dbutils.fs.rm(reload_ckpt, recurse=True)
