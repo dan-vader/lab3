@@ -220,3 +220,6 @@ __marimo__/
 # Locally generated data
 part1_autoloader/out_files/
 part1_autoloader/out_files_v2/
+
+# OS generated files
+.DS_Store
