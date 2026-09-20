@@ -80,3 +80,21 @@ parsed_stream = (raw_stream
                          F.col("timestamp").alias("_eh_enqueued_ts"))
                  .select("data.*", "_eh_partition", "_eh_offset", "_eh_enqueued_ts")
                  .withColumn("_ingest_ts", F.current_timestamp()))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Write to bronze
+# MAGIC The `availableNow` trigger processes all events available in the event hub and then stops, so the job does not keep the cluster running. The checkpoint stores the last processed offset, so the next run continues from there.
+
+# COMMAND ----------
+
+q = (parsed_stream.writeStream
+     .option("checkpointLocation", checkpoint_path)
+     .trigger(availableNow=True)
+     .toTable(target_table))
+q.awaitTermination()
+
+for p in q.recentProgress:
+    log.info("batch %s | rows=%s", p.batchId, p.numInputRows)
+log.info("Event Hub ingest finished")
