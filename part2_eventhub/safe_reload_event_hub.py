@@ -90,3 +90,49 @@ q = (parsed_stream.writeStream
      .toTable(staging_table))
 q.awaitTermination()
 log.info("Reload into staging finished")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Compare with the main table
+# MAGIC Events present in both tables are the ones a plain append would duplicate. Events missing from the main table are the ones the merge will insert.
+
+# COMMAND ----------
+
+keys = ["_eh_partition", "_eh_offset"]
+main_df = spark.table(target_table)
+staging_df = spark.table(staging_table)
+
+log.info("Staging rows: %d | already in main: %d | missing in main: %d",
+         staging_df.count(),
+         staging_df.join(main_df, keys, "left_semi").count(),
+         staging_df.join(main_df, keys, "left_anti").count())
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Merge into the main table
+# MAGIC The merge inserts only events that are not in the main table yet, so running it repeatedly never creates duplicates.
+
+# COMMAND ----------
+
+before = spark.table(target_table).count()
+spark.sql(f"""
+    MERGE INTO {target_table} AS t
+    USING {staging_table} AS s
+    ON t._eh_partition = s._eh_partition AND t._eh_offset = s._eh_offset
+    WHEN NOT MATCHED THEN INSERT *
+""")
+after = spark.table(target_table).count()
+log.info("Merge into main: before=%d after=%d", before, after)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Cleanup
+# MAGIC Removes the staging table and its checkpoint.
+
+# COMMAND ----------
+
+spark.sql(f"DROP TABLE IF EXISTS {staging_table}")
+dbutils.fs.rm(reload_checkpoint, recurse=True)
