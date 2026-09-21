@@ -1,1 +1,2 @@
 azure-eventhub>=5.15.1
+python-dotenv>=1.2.3

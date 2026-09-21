@@ -1,6 +1,6 @@
 """Emulate wind turbines sending telemetry to Azure Event Hubs.
 
-The connection string is read from the EH_CONNECTION_STR environment variable.
+The connection string is read from EH_CONNECTION_STR (environment variable or .env file).
 EH_NAME is only needed when the connection string has no EntityPath.
 """
 import argparse
@@ -11,6 +11,7 @@ import time
 from datetime import datetime, timezone
 
 from azure.eventhub import EventData, EventHubProducerClient
+from dotenv import load_dotenv
 
 from common.logging_utils import get_logger
 
@@ -30,6 +31,7 @@ def make_event(device_count: int) -> dict:
 
 
 def main():
+    load_dotenv()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rate", type=float, default=5.0, help="events per second")
     parser.add_argument("--count", type=int, default=300,
@@ -39,7 +41,7 @@ def main():
 
     connection_str = os.environ.get("EH_CONNECTION_STR")
     if not connection_str:
-        raise SystemExit("Set the EH_CONNECTION_STR environment variable")
+        raise SystemExit("Set EH_CONNECTION_STR in .env or the environment")
 
     client = EventHubProducerClient.from_connection_string(
         connection_str, eventhub_name=os.environ.get("EH_NAME")
